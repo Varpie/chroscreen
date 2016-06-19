@@ -1,0 +1,41 @@
+#!/bin/sh
+output=$(xrandr -q | grep " connected" | awk '{ print $1 }')
+
+device=$(ls /sys/class/backlight/)
+
+while [ ${#} != 0 ]; do
+	case "${1}" in
+	-h | --help)
+		echo "usage : ${0} [OPTION]..."
+		echo ""
+		echo "Options :"
+		echo "  -g, --gamma R:G:B       Changes the gamma through xrandr"
+		echo "      --brightness NUM    Changes the brightness through xrandr (NUM should be between 0 and 1)"
+		echo "  -b, --backlight NUM     Changes the backlight (NUM should be between 1 and 256)"
+		echo "  -t, --temperature NUM   Not yet implemented"
+		exit 0;;
+	-g | --gamma)
+		xrandr --output $output --gamma ${2}
+		shift 2;;
+	--brightness)
+		xrandr --output $output --brightness ${2}
+		shift 2;;
+	-b | --backlight)
+		echo ${2} | sudo tee -a /sys/class/backlight/$device/brightness
+		shift 2;;
+	esac
+done
+
+#if [ $# -eq 1 ]; then
+#	if [ $1 -le 6600 ]; then
+#		RED=$(awk "BEGIN {print 1}")
+#		GREEN=$(awk "BEGIN {print (99.4708025861 * log($1/100) - 161.1195681661)}")
+#		BLUE=$(awk "BEGIN {print (138.5177312231 * log($1/100 - 10) - 305.0447927307)}")
+#	else
+#		RED=$(awk "BEGIN {print (329.698727446 * ($1/100 - 60) ^ (-0.1332047592))}")
+#		GREEN=$(awk "BEGIN {print (288.1221695283 * ($1/100 - 60) ^ (-0.0755148492))}")
+#		BLUE=255
+#	fi
+#	echo "$RED $GREEN $BLUE"
+#	# xrandr --output $output --gamma $RED:$GREEN:$BLUE
+#fi
