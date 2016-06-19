@@ -1,28 +1,66 @@
-#!/bin/sh
+#!/bin/bash
+
+# I had issues with --output default, so I choose to get the 1st connected output xrandr gets
 output=$(xrandr -q | grep " connected" | awk '{ print $1 }')
 
+# This is used to change the backlight
 device=$(ls /sys/class/backlight/)
 
+print_help () {
+	echo "usage : ${0} [OPTION]..."
+	echo ""
+	echo "Options :"
+	echo "  -g, --gamma R:G:B       Changes the gamma through xrandr"
+	echo "      --brightness NUM    Changes the brightness through xrandr"
+	echo "                          only use it with NUM > 1, -b should be used otherwise"
+	echo "  -r, --reset             Resets xrandr values"
+	echo "  -b, --backlight NUM     Changes the backlight (NUM should be between 1 and 256)"
+	echo "  -t, --temperature NUM   Not yet implemented"
+	echo "  -h, --help              Display help"
+}
+
+xrandr_gamma () {
+	xrandr --output $output --gamma ${1}
+}
+
+xrandr_brightness () {
+	xrandr --output $output --brightness ${1}
+}
+
+backlight () {
+	echo ${1} | sudo tee -a /sys/class/backlight/$device/brightness > /dev/null
+}
+
+reset_xrandr () {
+	xrandr --output $output --gamma 1:1:1 --brightness 1
+}
+
+if [ ${#} = 0 ]; then
+	print_help
+	exit 0
+fi
+
+# Main loop
 while [ ${#} != 0 ]; do
 	case "${1}" in
 	-h | --help)
-		echo "usage : ${0} [OPTION]..."
-		echo ""
-		echo "Options :"
-		echo "  -g, --gamma R:G:B       Changes the gamma through xrandr"
-		echo "      --brightness NUM    Changes the brightness through xrandr (NUM should be between 0 and 1)"
-		echo "  -b, --backlight NUM     Changes the backlight (NUM should be between 1 and 256)"
-		echo "  -t, --temperature NUM   Not yet implemented"
+		print_help
 		exit 0;;
 	-g | --gamma)
-		xrandr --output $output --gamma ${2}
+		xrandr_gamma ${2}
 		shift 2;;
 	--brightness)
-		xrandr --output $output --brightness ${2}
+		xrandr_brightness ${2}
 		shift 2;;
 	-b | --backlight)
-		echo ${2} | sudo tee -a /sys/class/backlight/$device/brightness
+		backlight ${2}
 		shift 2;;
+	-r | --reset)
+		reset_xrandr
+		shift;;
+	*)
+		print_help
+		exit 0;;
 	esac
 done
 
