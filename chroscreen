@@ -6,6 +6,10 @@ output=$(xrandr -q | grep " connected" | awk '{ print $1 }')
 # This is used to change the backlight
 device=$(ls /sys/class/backlight/)
 
+# Used to change gamma and/or brightness via xrandr
+gamma="1:1:1"
+brightness="1"
+
 print_help () {
 	echo "usage : ${0} [OPTION]..."
 	echo ""
@@ -17,14 +21,6 @@ print_help () {
 	echo "  -b, --backlight NUM     Changes the backlight (NUM should be between 1 and 256)"
 	echo "  -t, --temperature NUM   Not yet implemented"
 	echo "  -h, --help              Display help"
-}
-
-xrandr_gamma () {
-	xrandr --output $output --gamma ${1}
-}
-
-xrandr_brightness () {
-	xrandr --output $output --brightness ${1}
 }
 
 backlight () {
@@ -47,10 +43,12 @@ while [ ${#} != 0 ]; do
 		print_help
 		exit 0;;
 	-g | --gamma)
-		xrandr_gamma ${2}
+		gamma=${2}
+		xrandr_changed=true
 		shift 2;;
 	--brightness)
-		xrandr_brightness ${2}
+		brightness=${2}
+		xrandr_changed=true
 		shift 2;;
 	-b | --backlight)
 		backlight ${2}
@@ -63,6 +61,11 @@ while [ ${#} != 0 ]; do
 		exit 0;;
 	esac
 done
+
+# I have to do both at once, xrandr doesn't like doing one then the other.
+if [ "$xrandr_changed" = "true" ]; then
+	xrandr --output $output --gamma $gamma --brightness $brightness
+fi
 
 #if [ $# -eq 1 ]; then
 #	if [ $1 -le 6600 ]; then
