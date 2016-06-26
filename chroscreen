@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # I had issues with --output default, so I choose to get the 1st connected output xrandr gets
 output=$(xrandr -q | grep " connected" | awk '{ print $1 }')
@@ -10,7 +10,7 @@ device=$(ls /sys/class/backlight/)
 gamma="1:1:1"
 brightness="1"
 
-print_help () {
+print_help() {
 	echo "usage : ${0} [OPTION]..."
 	echo ""
 	echo "Options :"
@@ -23,11 +23,11 @@ print_help () {
 	echo "  -h, --help              Display help"
 }
 
-backlight () {
+backlight() {
 	echo ${1} | sudo tee -a /sys/class/backlight/$device/brightness > /dev/null
 }
 
-reset_xrandr () {
+reset_xrandr() {
 	xrandr --output $output --gamma 1:1:1 --brightness 1
 }
 
@@ -36,7 +36,7 @@ if [ ${#} = 0 ]; then
 	exit 0
 fi
 
-# Main loop
+# Parsing arguments (god, I love this way of doing it)
 while [ ${#} != 0 ]; do
 	case "${1}" in
 	-h | --help)
@@ -64,6 +64,14 @@ done
 
 # I have to do both at once, xrandr doesn't like doing one then the other.
 if [ "$xrandr_changed" = "true" ]; then
+	# That ridiculous case is donc to be able to enter only 1 value into gamma.
+	case "$gamma" in
+		*:*)
+			;;
+		*)
+			gamma="$gamma:$gamma:$gamma"
+			;;
+	esac
 	xrandr --output $output --gamma $gamma --brightness $brightness
 fi
 
