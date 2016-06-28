@@ -10,29 +10,39 @@ device=$(ls /sys/class/backlight/)
 gamma="1:1:1"
 brightness="1"
 
+# By default, no verbose is given
+verbose=0
+
 print_help() {
-	echo "usage : ${0} [OPTION]..."
+	echo "usage: ${0} [OPTION]..."
 	echo ""
-	echo "Options :"
+	echo "Options:"
+	echo "  -v, --verbose           Prints useful informations"
 	echo "  -g, --gamma R:G:B       Changes the gamma through xrandr"
 	echo "      --brightness NUM    Changes the brightness through xrandr"
 	echo "                          only use it with NUM > 1, -b should be used otherwise"
 	echo "  -r, --reset             Resets xrandr values"
-	echo "  -b, --backlight NUM     Changes the backlight (NUM should be between 1 and 256)"
-	echo "  -t, --temperature NUM   Not yet implemented"
+	echo "  -b, --backlight NUM     Changes the backlight (1 ≤ NUM ≤ 256)"
+	echo "  -t, --temperature NUM   Experimental (understand: buggy) (1000 ≤ NUM ≤ 40000)"
 	echo "  -h, --help              Display help"
 }
 
 backlight() {
 	if [ ${1} -lt 1 ] || [ ${1} -gt 256 ]; then
-		echo "Backlight should be betweeh 1 and 256"
+		echo "Backlight should be between 1 and 256"
 	else
+		if [ $verbose -eq 1 ]; then
+			echo "Backlight : from $(cat /sys/class/backlight/$device/brightness) to ${1}"
+		fi
 		echo ${1} | sudo tee -a /sys/class/backlight/$device/brightness > /dev/null
 	fi
 }
 
 reset_xrandr() {
 	xrandr --output $output --gamma 1:1:1 --brightness 1
+	if [ $verbose -eq 1 ]; then
+		echo "xrandr has been reset (gamma & brightness back to 1)"
+	fi
 }
 
 change_temperature() {
@@ -47,6 +57,10 @@ change_temperature() {
 		RED=$(awk "BEGIN {print (329.698727446 * ($1/100 - 60) ^ (-0.1332047592))}")
 		GREEN=$(awk "BEGIN {print (288.1221695283 * ($1/100 - 60) ^ (-0.0755148492))}")
 		BLUE=255
+	fi
+	
+	if [ $verbose -eq 1 ]; then
+		echo "Translating temp. into RGB. Now R=$RED G=$GREEN B=$BLUE"
 	fi
 	
 	# next part is about staying between 0 and 255
@@ -65,6 +79,10 @@ change_temperature() {
 	min_max $GREEN; GREEN=$number
 	min_max $BLUE; BLUE=$number
 	
+	if [ $verbose -eq 1 ]; then
+		echo "Put back values into 0-255. Now R=$RED G=$GREEN B=$BLUE"
+	fi
+	
 	# xrandr is using cmyk, so I have to convert RGB to cmy
 	rgb_to_cmy() {
 		number=$(awk "BEGIN {
@@ -75,6 +93,10 @@ change_temperature() {
 	rgb_to_cmy $RED; RED=$number
 	rgb_to_cmy $GREEN; GREEN=$number
 	rgb_to_cmy $BLUE; BLUE=$number
+	
+	if [ $verbose -eq 1 ]; then
+		echo "Translated from RGB to CMY. Now R=$RED G=$GREEN B=$BLUE"
+	fi
 	
 	# normalizing, not sure it's necessary, though...
 	norm=$(awk "BEGIN {print 3/($RED+$GREEN+$BLUE)}")
@@ -88,6 +110,10 @@ change_temperature() {
 	normalize $RED; RED=$number
 	normalize $GREEN; GREEN=$number
 	normalize $BLUE; BLUE=$number
+	
+	if [ $verbose -eq 1 ]; then
+		echo "R=$RED G=$GREEN B=$BLUE"
+	fi
 	
 	# Finally, changing that gamma.
 	xrandr --output $output --gamma $RED:$GREEN:$BLUE
@@ -122,6 +148,9 @@ while [ ${#} != 0 ]; do
 	-t | --temperature)
 		change_temperature ${2}
 		shift 2;;
+	-v | --verbose)
+		verbose=1
+		shift;;
 	*)
 		print_help
 		exit 0;;
@@ -130,12 +159,15 @@ done
 
 # I have to do both at once, xrandr doesn't like doing one then the other.
 if [ "$xrandr_changed" = "true" ]; then
-	# That ridiculous case is donc to be able to enter only 1 value into gamma.
+	# That ridiculous case is done to be able to enter only 1 value into gamma.
 	case "$gamma" in
 		*:*)
 			;;
 		*)
 			gamma="$gamma:$gamma:$gamma"
+			if [ $verbose -eq 1 ]; then
+				echo "Gamma syntax wasn't correct. It now is $gamma"
+			fi
 			;;
 	esac
 	xrandr --output $output --gamma $gamma --brightness $brightness
