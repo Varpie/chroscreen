@@ -24,13 +24,76 @@ print_help() {
 }
 
 backlight() {
-	echo ${1} | sudo tee -a /sys/class/backlight/$device/brightness > /dev/null
+	if [ ${1} -lt 1 ] || [ ${1} -gt 256 ]; then
+		echo "Backlight should be betweeh 1 and 256"
+	else
+		echo ${1} | sudo tee -a /sys/class/backlight/$device/brightness > /dev/null
+	fi
 }
 
 reset_xrandr() {
 	xrandr --output $output --gamma 1:1:1 --brightness 1
 }
 
+change_temperature() {
+	if [ ${1} -lt 1000 ] || [ ${1} -gt 40000 ]; then
+		echo "Temperature should be between 1000K and 40000K"
+		exit 0
+	elif [ ${1} -le 6600 ]; then
+		RED=255
+		GREEN=$(awk "BEGIN {print (99.4708025861 * log($1/100) - 161.1195681661)}")
+		BLUE=$(awk "BEGIN {print (138.5177312231 * log($1/100 - 10) - 305.0447927307)}")
+	else
+		RED=$(awk "BEGIN {print (329.698727446 * ($1/100 - 60) ^ (-0.1332047592))}")
+		GREEN=$(awk "BEGIN {print (288.1221695283 * ($1/100 - 60) ^ (-0.0755148492))}")
+		BLUE=255
+	fi
+	
+	# next part is about staying between 0 and 255
+	number=1.0
+	
+	min_max() {
+		# getting tired of using awk for simple stuff, because it's floating numbers
+		number=$(awk "BEGIN {
+			if ($1 > 255) print 255;
+			else if ($1 < 0) print 0;
+			else print $1;
+		}")
+	}
+	
+	min_max $RED; RED=$number
+	min_max $GREEN; GREEN=$number
+	min_max $BLUE; BLUE=$number
+	
+	# xrandr is using cmyk, so I have to convert RGB to cmy
+	rgb_to_cmy() {
+		number=$(awk "BEGIN {
+			print 2 - $1/255;
+		}")
+	}
+	
+	rgb_to_cmy $RED; RED=$number
+	rgb_to_cmy $GREEN; GREEN=$number
+	rgb_to_cmy $BLUE; BLUE=$number
+	
+	# normalizing, not sure it's necessary, though...
+	norm=$(awk "BEGIN {print 3/($RED+$GREEN+$BLUE)}")
+	
+	normalize() {
+		number=$(awk "BEGIN {
+			print $1*$norm;
+		}")
+	}
+	
+	normalize $RED; RED=$number
+	normalize $GREEN; GREEN=$number
+	normalize $BLUE; BLUE=$number
+	
+	# Finally, changing that gamma.
+	xrandr --output $output --gamma $RED:$GREEN:$BLUE
+}
+
+# No argument given, since this program is useless on its own, print help and quit
 if [ ${#} = 0 ]; then
 	print_help
 	exit 0
@@ -56,6 +119,9 @@ while [ ${#} != 0 ]; do
 	-r | --reset)
 		reset_xrandr
 		shift;;
+	-t | --temperature)
+		change_temperature ${2}
+		shift 2;;
 	*)
 		print_help
 		exit 0;;
@@ -74,17 +140,3 @@ if [ "$xrandr_changed" = "true" ]; then
 	esac
 	xrandr --output $output --gamma $gamma --brightness $brightness
 fi
-
-#if [ $# -eq 1 ]; then
-#	if [ $1 -le 6600 ]; then
-#		RED=$(awk "BEGIN {print 1}")
-#		GREEN=$(awk "BEGIN {print (99.4708025861 * log($1/100) - 161.1195681661)}")
-#		BLUE=$(awk "BEGIN {print (138.5177312231 * log($1/100 - 10) - 305.0447927307)}")
-#	else
-#		RED=$(awk "BEGIN {print (329.698727446 * ($1/100 - 60) ^ (-0.1332047592))}")
-#		GREEN=$(awk "BEGIN {print (288.1221695283 * ($1/100 - 60) ^ (-0.0755148492))}")
-#		BLUE=255
-#	fi
-#	echo "$RED $GREEN $BLUE"
-#	# xrandr --output $output --gamma $RED:$GREEN:$BLUE
-#fi
