@@ -19,6 +19,7 @@ print_help() {
 	echo ""
 	echo "Options:"
 	echo "  -v, --verbose           Prints useful informations"
+	echo "      --rgb               Not using the RGB to CMYK translation"
 	echo "  -g, --gamma R:G:B       Changes the gamma through xrandr"
 	echo "      --brightness NUM    Changes the brightness through xrandr"
 	echo "                          only use it with NUM > 1, -b should be used otherwise"
@@ -94,16 +95,18 @@ change_temperature() {
 		echo "Put back values into 0-255. Now R=$RED G=$GREEN B=$BLUE"
 	fi
 
-	# xrandr is using cmyk, so I have to convert RGB to cmy
-	rgb_to_cmy() {
-		number=$(awk "BEGIN {
-			print 2 - $1/255;
-		}")
-	}
+	if [ "$rgb_mode" != "true" ]; then
+		# this screen is using cmyk, so I have to convert RGB to cmy
+		rgb_to_cmy() {
+			number=$(awk "BEGIN {
+				print 2 - $1/255;
+			}")
+		}
 
-	rgb_to_cmy $RED; RED=$number
-	rgb_to_cmy $GREEN; GREEN=$number
-	rgb_to_cmy $BLUE; BLUE=$number
+		rgb_to_cmy $RED; RED=$number
+		rgb_to_cmy $GREEN; GREEN=$number
+		rgb_to_cmy $BLUE; BLUE=$number
+	fi
 
 	if [ $verbose -eq 1 ]; then
 		echo "Translated from RGB to CMY. Now R=$RED G=$GREEN B=$BLUE"
@@ -148,6 +151,9 @@ while [ ${#} != 0 ]; do
 	-h | --help)
 		print_help
 		exit 0;;
+	--rgb)
+		rgb_mode=true
+		shift;;
 	-g | --gamma)
 		gamma=${2}
 		xrandr_changed=true
