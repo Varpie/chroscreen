@@ -29,13 +29,17 @@ print_help() {
 }
 
 backlight() {
-	if [ ${1} -lt 1 ] || [ ${1} -gt 256 ]; then
-		echo "Backlight should be between 1 and 256"
+	if [ -z $backlight ]; then
+		echo "Backlight not supported on your device"
 	else
-		if [ $verbose -eq 1 ]; then
-			echo "Backlight : from $(cat /sys/class/backlight/$device/brightness) to ${1}"
+		if [ ${1} -lt 1 ] || [ ${1} -gt 256 ]; then
+			echo "Backlight should be between 1 and 256"
+		else
+			if [ $verbose -eq 1 ]; then
+				echo "Backlight : from $(cat /sys/class/backlight/$device/brightness) to ${1}"
+			fi
+			echo ${1} | sudo tee -a /sys/class/backlight/$device/brightness > /dev/null
 		fi
-		echo ${1} | sudo tee -a /sys/class/backlight/$device/brightness > /dev/null
 	fi
 }
 
