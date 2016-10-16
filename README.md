@@ -1,7 +1,7 @@
 # croscreen
 A small bash utility to easily change your brightnesst/gamma/backlight on Chrome OS
 ```
-Usage : [OPTION]...
+Usage : sh chroscreen [OPTION]...
 	Options:
 	  -v, --verbose           Prints useful informations
 	  -g, --gamma R:G:B       Changes the gamma through xrandr
