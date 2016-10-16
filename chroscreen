@@ -2,6 +2,7 @@
 
 # I had issues with --output default, so I choose to get the 1st connected output xrandr gets
 output=$(xrandr -q | grep " connected" | awk '{ print $1 }')
+lines=$(echo $output | awk '{print NF}')
 
 # This is used to change the backlight
 device=$(ls /sys/class/backlight/)
@@ -39,7 +40,13 @@ backlight() {
 }
 
 reset_xrandr() {
-	xrandr --output $output --gamma 1:1:1 --brightness 1
+	if [ $lines -gt 1 ]; then
+		for o in $output; do
+			xrandr --output $o --gamma 1:1:1 --brightness 1
+		done
+	else
+		xrandr --output $output --gamma 1:1:1 --brightness 1
+	fi
 	if [ $verbose -eq 1 ]; then
 		echo "xrandr has been reset (gamma & brightness back to 1)"
 	fi
@@ -58,14 +65,14 @@ change_temperature() {
 		GREEN=$(awk "BEGIN {print (288.1221695283 * ($1/100 - 60) ^ (-0.0755148492))}")
 		BLUE=255
 	fi
-	
+
 	if [ $verbose -eq 1 ]; then
 		echo "Translating temp. into RGB. Now R=$RED G=$GREEN B=$BLUE"
 	fi
-	
+
 	# next part is about staying between 0 and 255
 	number=1.0
-	
+
 	min_max() {
 		# getting tired of using awk for simple stuff, because it's floating numbers
 		number=$(awk "BEGIN {
@@ -74,49 +81,55 @@ change_temperature() {
 			else print $1;
 		}")
 	}
-	
+
 	min_max $RED; RED=$number
 	min_max $GREEN; GREEN=$number
 	min_max $BLUE; BLUE=$number
-	
+
 	if [ $verbose -eq 1 ]; then
 		echo "Put back values into 0-255. Now R=$RED G=$GREEN B=$BLUE"
 	fi
-	
+
 	# xrandr is using cmyk, so I have to convert RGB to cmy
 	rgb_to_cmy() {
 		number=$(awk "BEGIN {
 			print 2 - $1/255;
 		}")
 	}
-	
+
 	rgb_to_cmy $RED; RED=$number
 	rgb_to_cmy $GREEN; GREEN=$number
 	rgb_to_cmy $BLUE; BLUE=$number
-	
+
 	if [ $verbose -eq 1 ]; then
 		echo "Translated from RGB to CMY. Now R=$RED G=$GREEN B=$BLUE"
 	fi
-	
+
 	# normalizing, not sure it's necessary, though...
 	norm=$(awk "BEGIN {print 3/($RED+$GREEN+$BLUE)}")
-	
+
 	normalize() {
 		number=$(awk "BEGIN {
 			print $1*$norm;
 		}")
 	}
-	
+
 	normalize $RED; RED=$number
 	normalize $GREEN; GREEN=$number
 	normalize $BLUE; BLUE=$number
-	
+
 	if [ $verbose -eq 1 ]; then
 		echo "R=$RED G=$GREEN B=$BLUE"
 	fi
-	
+
 	# Finally, changing that gamma.
-	xrandr --output $output --gamma $RED:$GREEN:$BLUE
+	if [ $lines -gt 1 ]; then
+		for o in $output; do
+			xrandr --output $o --gamma $RED:$GREEN:$BLUE
+		done
+	else
+		xrandr --output $output --gamma $RED:$GREEN:$BLUE
+	fi
 }
 
 # No argument given, since this program is useless on its own, print help and quit
@@ -170,5 +183,11 @@ if [ "$xrandr_changed" = "true" ]; then
 			fi
 			;;
 	esac
-	xrandr --output $output --gamma $gamma --brightness $brightness
+	if [ $lines -gt 1 ]; then
+		for o in $output; do
+			xrandr --output $o --gamma $gamma --brightness $brightness
+		done
+	else
+		xrandr --output $output --gamma $gamma --brightness $brightness
+	fi
 fi
