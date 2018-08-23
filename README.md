@@ -1,4 +1,7 @@
 # croscreen
+
+**WARNING: This project is deprecated and not maintained since xrandr is not usable with ChromeOS** (see issue #2 for more infos)
+
 A small bash utility to easily change your brightnesst/gamma/backlight on Chrome OS
 ```
 Usage : sh chroscreen [OPTION]...
